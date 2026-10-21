@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flux · Bio</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* ================= 3D ФОН ================= */
+  #bgCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    transform: translateZ(0); 
+  }
+
+  /* ================= КАСТОМНЫЙ КУРСОР ================= */
+  #cursorCanvas {
+    position: fixed; inset: 0;
+    pointer-events: none; z-index: 9999;
+  }
+  .custom-cursor {
+    position: fixed;
+    top: 0; left: 0;
+    width: 8px; height: 8px;
+    background: #fff;
+    border-radius: 50%;
+    pointer-events: none; z-index: 10000;
+    transform: translate3d(-50%, -50%, 0);
+    will-change: transform;
+    box-shadow: 0 0 10px 2px rgba(255,255,255,0.5);
+  }
+
+  /* ================= ШАПКА ================= */
+  .header {
+    position: fixed;
+    top: 0; left: 0; width: 100%;
+    padding: 1.5rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .header-left {
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+  }
+  .header-left span {
+    font-weight: 300;
+    color: #888;
+    font-size: 0.9rem;
+    margin-left: 0.4rem;
+  }
+
+  .header-center {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    background: rgba(20,20,20,0.6);
+    padding: 0.4rem;
+    border-radius: 50px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #aaa;
+    border-radius: 50px;
+    line-height: 1;
+    white-space: nowrap;
+    transition: all 0.3s;
+    cursor: none;
+  }
+  
+  .nav-item svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
+
+  .nav-item:hover {
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .nav-item.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(20,20,20,0.6);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(10px);
+    font-size: 0.75rem;
+    color: #aaa;
+    line-height: 1;
+  }
+  .header-right svg { width: 12px; height: 12px; fill: currentColor; }
+  .header-right .divider { width: 1px; height: 12px; background: rgba(255,255,255,0.2); margin: 0 0.5rem; }
+
+  /* ================= КОНТЕНТ ================= */
+  .container {
+    position: relative;
+    z-index: 2;
+    width: 100%; max-width: 1200px;
+    margin: 0 auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding-top: 60px;
+    pointer-events: none;
+  }
+
+  .container > * { pointer-events: auto; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #ddd;
+    margin-bottom: 2rem;
+    background: rgba(10,10,10,0.6);
+    padding: 0.5rem 1rem;
+    border-radius: 50px;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+    animation: fadeUp 1s ease-out 0.2s both;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #00ff88;
+    box-shadow: 0 0 10px #00ff88;
+    animation: blink 2s infinite;
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .greeting {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #aaa;
+    margin-bottom: -1rem;
+    z-index: 2;
+    animation: fadeUp 1s ease-out 0.3s both;
+  }
+
+  .hero-title {
+    font-size: clamp(6rem, 22vw, 18rem);
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -0.05em;
+    text-transform: lowercase;
+    background: linear-gradient(180deg, #ffffff 0%, #e0e0e0 20%, #888888 45%, #444444 50%, #888888 55%, #e0e0e0 80%, #ffffff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    position: relative;
+    z-index: 1;
+    animation: fadeUp 1s ease-out 0.4s both;
+    filter: drop-shadow(0 20px 40px rgba(0,0,0,0.8));
+  }
+
+  .aka {
+    font-size: 0.85rem;
+    color: #888;
+    margin-bottom: 1.5rem;
+    z-index: 2;
+    animation: fadeUp 1s ease-out 0.5s both;
+  }
+
+  .description {
+    font-size: 0.95rem;
+    color: #ccc;
+    line-height: 1.6;
+    max-width: 450px;
+    margin-bottom: 2.5rem;
+    z-index: 2;
+    animation: fadeUp 1s ease-out 0.6s both;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  }
+
+  .buttons {
+    display: flex;
+    gap: 1rem;
+    z-index: 2;
+    animation: fadeUp 1s ease-out 0.7s both;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.9rem 1.8rem;
+    border-radius: 50px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: none;
+    line-height: 1;
+  }
+  .btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+  .btn-light {
+    background: #fff;
+    color: #000;
+    border: 1px solid #fff;
+  }
+  .btn-light:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(255,255,255,0.1);
+  }
+
+  .btn-dark {
+    background: rgba(30,30,30,0.6);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(10px);
+  }
+  .btn-dark:hover {
+    background: rgba(50,50,50,0.8);
+    transform: translateY(-2px);
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  .scroll-down {
+    position: absolute;
+    bottom: 2rem;
+    font-size: 0.7rem;
+    color: #777;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    animation: fadeUp 1s ease-out 0.8s both;
+  }
+  .scroll-down svg { width: 20px; height: 20px; fill: currentColor; animation: bounce 2s infinite; }
+  @keyframes bounce { 0%, 20%, 50%, 80%, 100% { transform: translateY(0); } 40% { transform: translateY(-10px); } 60% { transform: translateY(-5px); } }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ================= МУЗЫКАЛЬНЫЙ ПЛЕЕР ================= */
+  .music-player {
+    position: fixed;
+    bottom: 20px; right: 20px;
+    z-index: 50;
+    width: 280px;
+    background: rgba(15,15,15,0.7);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    backdrop-filter: blur(20px);
+    padding: 1rem;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+  }
+  .music-player:hover {
+    border-color: rgba(255,255,255,0.25);
+  }
+  
+  .player-header {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-bottom: 0.7rem;
+    font-size: 0.6rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #888; font-weight: 600;
+  }
+  .eq { display: flex; align-items: flex-end; gap: 2px; height: 10px; margin-left: auto; }
+  .eq span { width: 2px; background: #fff; animation: eq 1s infinite ease-in-out; }
+  .eq span:nth-child(1) { height: 40%; animation-delay: 0s; }
+  .eq span:nth-child(2) { height: 90%; animation-delay: 0.2s; }
+  .eq span:nth-child(3) { height: 60%; animation-delay: 0.4s; }
+  .eq span:nth-child(4) { height: 100%; animation-delay: 0.1s; }
+  .music-player.paused .eq span { animation-play-state: paused; opacity: 0.3; }
+  @keyframes eq { 0%, 100% { transform: scaleY(0.4); } 50% { transform: scaleY(1); } }
+
+  .track-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-artist { font-size: 0.7rem; color: #888; margin-bottom: 0.8rem; }
+
+  .progress-wrap { width: 100%; height: 3px; background: rgba(255,255,255,0.1); border-radius: 3px; cursor: pointer; margin-bottom: 0.5rem; }
+  .progress-bar { height: 100%; width: 0%; background: #fff; border-radius: 3px; }
+  .time-row { display: flex; justify-content: space-between; font-size: 0.6rem; color: #666; margin-bottom: 0.8rem; }
+
+  .controls { display: flex; align-items: center; justify-content: center; gap: 1rem; }
+  .ctrl-btn { background: none; border: none; color: #aaa; cursor: pointer; transition: color 0.2s; padding: 0; display: flex; }
+  .ctrl-btn:hover { color: #fff; }
+  .ctrl-btn svg { width: 14px; height: 14px; fill: currentColor; }
+  .play-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.3); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .play-btn:hover { background: #fff; color: #000; }
+  .play-btn svg { width: 14px; height: 14px; }
+
+  @media (max-width: 768px) {
+    .header-center { display: none; }
+    .header { padding: 1rem 1.5rem; }
+    .buttons { flex-direction: column; width: 100%; max-width: 300px; }
+    .btn { justify-content: center; width: 100%; }
+    .music-player { width: calc(100vw - 32px); right: 16px; bottom: 16px; }
+    .hero-title { font-size: clamp(4rem, 25vw, 8rem); }
+    body { cursor: auto; }
+    .custom-cursor, #cursorCanvas { display: none; }
+  }
+</style>
+</head>
+<body>
+
+  <canvas id="bgCanvas"></canvas>
+  <canvas id="cursorCanvas"></canvas>
+  <div class="custom-cursor" id="cursor"></div>
+
+  <!-- ШАПКА (ВЫРОВНЕНА ИДЕАЛЬНО) -->
+  <header class="header">
+    <div class="header-left">
+      flux <span>/ bio</span>
+    </div>
+    
+    <nav class="header-center">
+      <div class="nav-item active">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+        Обо мне
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        Работы
+      </div>
+      <div class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Соц сети
+      </div>
+    </nav>
+
+    <div class="header-right">
+      <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+      <span id="clock">00:00</span>
+      <div class="divider"></div>
+      <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+      <span id="date">1 января</span>
+    </div>
+  </header>
+
+  <!-- КОНТЕНТ -->
+  <main class="container">
+    <div class="badge">
+      <div class="badge-dot"></div>
+      Java-разработчик
+    </div>
+    
+    <div class="greeting">Привет, я</div>
+    <h1 class="hero-title">Flux</h1>
+    <div class="aka">aka flux1337</div>
+    
+    <p class="description">
+      Пишу клиенты для Minecraft и сайты. Сейчас — ведущий<br>
+      разработчик Santa Client.
+    </p>
+
+    <div class="buttons">
+      <a href="https://t.me/santaclient1" target="_blank" class="btn btn-light">
+        <svg viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+        Написать мне
+      </a>
+      <a href="https://discord.gg/4SS72qwm5" target="_blank" class="btn btn-dark">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        Мои работы
+      </a>
+    </div>
+
+    <div class="scroll-down">
+      листай вниз
+      <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+    </div>
+  </main>
+
+  <!-- ПЛЕЕР -->
+  <div class="music-player paused" id="musicPlayer">
+    <div class="player-header">
+      <span>Now Playing</span>
+      <div class="eq"><span></span><span></span><span></span><span></span></div>
+    </div>
+    <div class="track-title" id="trackTitle">ПОРЕЗЫ НА РУКАХ</div>
+    <div class="track-artist" id="trackArtist">FORTUNA 812, ELOX1M</div>
+    
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div class="time-row">
+      <span id="currentTime">0:00</span>
+      <span id="duration">0:00</span>
+    </div>
+    
+    <div class="controls">
+      <button class="ctrl-btn" id="prevBtn">
+        <svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="ctrl-btn play-btn" id="playBtn">
+        <svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <button class="ctrl-btn" id="nextBtn">
+        <svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  /* Время */
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+    document.getElementById('date').textContent = `${now.getDate()} ${months[now.getMonth()]}`;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  /* Курсор + Частицы */
+  const cursor = document.getElementById('cursor');
+  const cCanvas = document.getElementById('cursorCanvas');
+  const cCtx = cCanvas.getContext('2d');
+  let particles = [];
+  
+  function resizeC() { cCanvas.width = window.innerWidth; cCanvas.height = window.innerHeight; }
+  window.addEventListener('resize', resizeC);
+  resizeC();
+
+  window.addEventListener('mousemove', (e) => {
+    cursor.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+    if (Math.random() > 0.6 && particles.length < 50) {
+      particles.push({ x: e.clientX, y: e.clientY, size: Math.random() * 2 + 0.5, sx: (Math.random() - 0.5) * 1.2, sy: (Math.random() - 0.5) * 1.2, life: 1 });
+    }
+  });
+
+  function animC() {
+    cCtx.clearRect(0, 0, cCanvas.width, cCanvas.height);
+    for (let i = particles.length - 1; i >= 0; i--) {
+      let p = particles[i];
+      p.x += p.sx; p.y += p.sy; p.life -= 0.03;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      cCtx.beginPath(); cCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      cCtx.fillStyle = `rgba(255, 255, 255, ${p.life})`; cCtx.fill();
+    }
+    requestAnimationFrame(animC);
+  }
+  animC();
+
+  /* Фон (Волны) */
+  const bgCanvas = document.getElementById('bgCanvas');
+  const bgCtx = bgCanvas.getContext('2d');
+  let w, h;
+  function resizeBg() { w = bgCanvas.width = window.innerWidth; h = bgCanvas.height = window.innerHeight; }
+  window.addEventListener('resize', resizeBg);
+  resizeBg();
+
+  let time = 0;
+  function drawBg() {
+    bgCtx.fillStyle = '#050505'; bgCtx.fillRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2 + 100;
+
+    for (let i = 0; i < 12; i++) {
+      const radius = 200 + i * 45 + Math.sin(time + i * 0.5) * 15;
+      bgCtx.beginPath();
+      bgCtx.ellipse(cx, cy, radius * 1.5, radius * 0.8, 0, 0, Math.PI * 2);
+      
+      const grad = bgCtx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.05)');
+      grad.addColorStop(0.45, 'rgba(255, 255, 255, 0.0)');
+      grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.3)');
+      grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.0)');
+      grad.addColorStop(1, 'rgba(255, 255, 255, 0.05)');
+      bgCtx.strokeStyle = grad; bgCtx.lineWidth = 12; bgCtx.stroke();
+    }
+
+    const centerGrad = bgCtx.createRadialGradient(cx, cy, 0, cx, cy, w/2);
+    centerGrad.addColorStop(0, 'rgba(0,0,0,0.95)');
+    centerGrad.addColorStop(0.5, 'rgba(0,0,0,0.7)');
+    centerGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    bgCtx.fillStyle = centerGrad; bgCtx.fillRect(0, 0, w, h);
+
+    time += 0.008;
+    requestAnimationFrame(drawBg);
+  }
+  drawBg();
+
+  /* Музыка */
+  const tracks = [
+    { title: 'ПОРЕЗЫ НА РУКАХ', artist: 'FORTUNA 812, ELOX1M', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+    { title: 'MIDNIGHT FLOW', artist: 'Flux · Santa Client', src: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' }
+  ];
+
+  const audio = document.getElementById('audio'); audio.volume = 0.5;
+  let currentIndex = 0;
+  const player = document.getElementById('musicPlayer'), playBtn = document.getElementById('playBtn'), playIcon = document.getElementById('playIcon');
+  const prevBtn = document.getElementById('prevBtn'), nextBtn = document.getElementById('nextBtn');
+  const trackTitle = document.getElementById('trackTitle'), trackArtist = document.getElementById('trackArtist');
+  const progressWrap = document.getElementById('progressWrap'), progressBar = document.getElementById('progressBar');
+  const currentTimeEl = document.getElementById('currentTime'), durationEl = document.getElementById('duration');
+
+  const ICON_PLAY = '<path d="M8 5v14l11-7z"/>', ICON_PAUSE = '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+  function formatTime(sec) {
+    if (!isFinite(sec) || sec < 0) return '0:00';
+    return Math.floor(sec / 60) + ':' + String(Math.floor(sec % 60)).padStart(2, '0');
+  }
+
+  function loadTrack(index) {
+    currentIndex = index;
+    audio.src = tracks[index].src;
+    trackTitle.textContent = tracks[index].title;
+    trackArtist.textContent = tracks[index].artist;
+    progressBar.style.width = '0%';
+    currentTimeEl.textContent = '0:00';
+    durationEl.textContent = '0:00';
+  }
+
+  function playTrack() {
+    audio.play().then(() => { player.classList.remove('paused'); playIcon.innerHTML = ICON_PAUSE; }).catch(()=>{});
+  }
+
+  function pauseTrack() {
+    audio.pause(); player.classList.add('paused'); playIcon.innerHTML = ICON_PLAY;
+  }
+
+  playBtn.addEventListener('click', () => audio.paused ? playTrack() : pauseTrack());
+  prevBtn.addEventListener('click', () => { loadTrack((currentIndex - 1 + tracks.length) % tracks.length); playTrack(); });
+  nextBtn.addEventListener('click', () => { loadTrack((currentIndex + 1) % tracks.length); playTrack(); });
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      progressBar.style.width = (audio.currentTime / audio.duration) * 100 + '%';
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+      durationEl.textContent = formatTime(audio.duration);
+    }
+  });
+
+  audio.addEventListener('ended', () => { loadTrack((currentIndex + 1) % tracks.length); playTrack(); });
+  progressWrap.addEventListener('click', (e) => {
+    const rect = progressWrap.getBoundingClientRect();
+    if (audio.duration) audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+  });
+
+  loadTrack(0);
+  document.body.addEventListener('click', function initAudio() {
+    if (audio.paused && audio.currentTime === 0) playTrack();
+    document.body.removeEventListener('click', initAudio);
+  }, { once: true });
+});
+</script>
+</body>
+</html>
